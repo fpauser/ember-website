@@ -2,37 +2,36 @@ import EmberRouter from '@ember/routing/router';
 import config from './config/environment';
 
 import { inject as service } from '@ember/service';
-import { get } from '@ember/object';
-import { scheduleOnce } from '@ember/runloop';
+
+const hostname = "www.emberjs.com";
 
 const Router = EmberRouter.extend({
-  navbar: service(),
   location: config.locationType,
   rootURL: config.rootURL,
+
+  navbar: service(),
   metrics: service(),
   fastboot: service(),
 
-  didTransition() {
+  init() {
     this._super(...arguments);
-    this.navbar.closePopupMenu();
-    this._trackPage();
+
+    // this is constant for this app and is only used to identify page views in the GA dashboard
+    const { page, title = "unknown" } = this;
+
+    this.on("routeDidChange", () => {
+      this.navbar.closePopupMenu();
+      this._trackPage(page, title);
+    });
   },
 
-  _trackPage() {
-    if(get(this, 'fastboot.isFastBoot')) {
+  _trackPage(page, title) {
+    if (this.fastboot.isFastBoot) {
       return;
     }
 
-    scheduleOnce('afterRender', this, () => {
-      const page = this.url;
-      const title = this.getWithDefault('currentRouteName', 'unknown');
-
-      // this is constant for this app and is only used to identify page views in the GA dashboard
-      const hostname = 'www.emberjs.com';
-
-      this.metrics.trackPage({ page, title, hostname });
-    });
-  },
+    this.metrics.trackPage({ page, title, hostname });
+  }
 });
 
 Router.map(function() {
